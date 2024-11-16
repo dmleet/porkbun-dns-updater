@@ -1,0 +1,102 @@
+#!/bin/bash
+
+# Porkbun API Script to Update DNS Records
+
+# Parameters
+readonly domain="${1}"             # Your domain (e.g., example.com)
+readonly subdomains="${2}"         # Comma-separated list of subdomains (e.g., "@,www,api")
+readonly api_key="${3}"            # Porkbun API Key
+readonly api_secret="${4}"         # Porkbun Secret API Key
+readonly interval="${5}"           # Time in seconds between checks
+
+# Porkbun API Endpoints
+readonly base_url="https://porkbun.com/api/json/v3"
+readonly retrieve_url="${base_url}/dns/retrieve/${domain}"
+
+# Validate domain
+if [[ "${domain}" == 'NULL' ]]; then
+    echo "Domain not set, exiting container"
+    sleep 30
+    exit 1
+fi
+
+# Validate API key
+if [[ "${api_key}" == 'NULL' ]]; then
+    echo "Api key not set, exiting container"
+    sleep 30
+    exit 1
+fi
+
+# Validate API secret
+if [[ "${api_secret}" == 'NULL' ]]; then
+    echo "Api secret not set, exiting container"
+    sleep 30
+    exit 1
+fi
+
+# Loop
+while true; do
+    echo "Starting DNS check at $(date)"
+
+    # Get the current external IP address
+    external_ip=$(curl -s "https://api.ipify.org/")
+    if [[ -z "$external_ip" ]]; then
+        echo "Error: Unable to retrieve external IP. Retrying in ${interval} seconds..."
+        sleep "${interval}"
+        continue
+    fi
+    echo "Current external IP: ${external_ip}"
+
+    # Get current DNS records
+    response=$(curl -s -X POST "${retrieve_url}" \
+        -H "Content-Type: application/json" \
+        -d "{\"apikey\":\"${api_key}\", \"secretapikey\":\"${api_secret}\"}")
+
+    # Check for errors in the response
+    if [[ $(echo "$response" | jq -r '.status') != "SUCCESS" ]]; then
+        echo "Error retrieving DNS records: $(echo "$response" | jq -r '.message')"
+        echo "Retrying in ${interval} seconds..."
+        sleep "${interval}"
+        continue
+    fi
+
+    # Convert the comma-separated subdomains into an array
+    IFS=',' read -r -a subdomain_array <<< "$subdomains"
+
+    # For each subdomain
+    for subdomain in "${subdomain_array[@]}"; do
+        full_name="${subdomain}.${domain}"
+
+        # Find the current IP for the subdomain in DNS records
+        record=$(echo "$response" | jq -r ".records[] | select(.type == \"A\" and .name == \"${full_name}\")")
+        record_id=$(echo "$record" | jq -r '.id')
+        current_dns_ip=$(echo "$record" | jq -r '.content')
+
+        # Skip missing records
+        if [[ -z "$record_id" ]]; then
+            echo "No matching A record found for subdomain ${full_name}. Skipping."
+            continue
+        fi
+
+        # Compare the external IP with the current DNS IP
+        if [[ "$external_ip" == "$current_dns_ip" ]]; then
+            echo "No update needed for ${full_name}."
+            continue
+        fi
+
+        # Update the A record if the IPs do not match
+        update_url="${base_url}/dns/edit/${domain}/${record_id}"
+        update_response=$(curl -s -X POST "${update_url}" \
+            -H "Content-Type: application/json" \
+            -d "{\"apikey\":\"${api_key}\", \"secretapikey\":\"${api_secret}\", \"id\":\"${record_id}\", \"type\":\"A\", \"name\":\"${subdomain}\", \"content\":\"${external_ip}\", \"ttl\":600}")
+
+        if [[ $(echo "$update_response" | jq -r '.status') == "SUCCESS" ]]; then
+            echo "A record for ${full_name} updated from ${current_dns_ip} to ${external_ip}!"
+        else
+            echo "Error updating A record for ${subdomain}: $(echo "$update_response" | jq -r '.message')"
+        fi
+    done
+
+    # Wait for the next check
+    sleep "${interval}"
+done
