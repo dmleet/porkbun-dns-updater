@@ -6,7 +6,6 @@
 * Required ENV variables are **DOMAIN**, **API_KEY**, and **API_SECRET**
 * Default of 600 used for **INTERVAL** if none specified (10 minutes)
 * External IP is obtained from https://api.ipify.org/
-* 
 
 ## Docker run example
 ```
