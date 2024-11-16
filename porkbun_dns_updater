@@ -77,13 +77,13 @@ while true; do
 
         # Skip missing records
         if [[ -z "$record_id" ]]; then
-            echo "No matching A record found for subdomain ${full_name}. Skipping."
+            echo "No matching A record found for ${full_name}. Skipping."
             continue
         fi
 
         # Compare the external IP with the current DNS IP
         if [[ "$external_ip" == "$current_dns_ip" ]]; then
-            echo "No update needed for ${full_name}."
+            echo "No update needed for ${full_name}"
             continue
         fi
 

@@ -2,9 +2,11 @@
 ## A simple script to update Porkbun DNS records
 
 ### Notes:
-* Multiple subdomains can be updated by providing comma-delimited list, SUB_DOMAINS = "@,www,api"
+* Multiple subdomains can be updated by providing comma-delimited list, **SUB_DOMAINS** = "@,www,api"
 * Required ENV variables are **DOMAIN**, **API_KEY**, and **API_SECRET**
+* Default of 600 used for **INTERVAL** if none specified (10 minutes)
 * External IP is obtained from https://api.ipify.org/
+* 
 
 ## Docker run example
 ```
