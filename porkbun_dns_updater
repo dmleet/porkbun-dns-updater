@@ -66,6 +66,9 @@ while true; do
     # For each subdomain
     for subdomain in "${subdomain_array[@]}"; do
         full_name="${subdomain}.${domain}"
+        if [ "$subdomain" == "@" ]; then
+          full_name="${domain}"
+        fi
 
         # Find the current IP for the subdomain in DNS records
         record=$(echo "$response" | jq -r ".records[] | select(.type == \"A\" and .name == \"${full_name}\")")
