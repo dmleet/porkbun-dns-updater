@@ -10,7 +10,7 @@ readonly api_secret="${4}"         # Porkbun Secret API Key
 readonly interval="${5}"           # Time in seconds between checks
 
 # Porkbun API Endpoints
-readonly base_url="https://porkbun.com/api/json/v3"
+readonly base_url="https://api.porkbun.com/api/json/v3"
 readonly retrieve_url="${base_url}/dns/retrieve/${domain}"
 
 # Validate domain
