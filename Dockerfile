@@ -21,4 +21,4 @@ ENV API_KEY=${API_KEY:-NULL}
 ENV API_SECRET=${API_SECRET:-NULL}
 ENV INTERVAL=${INTERVAL:-600}
 
-CMD /opt/porkbun_dns_updater ${DOMAIN} ${SUB_DOMAINS} ${API_KEY} ${API_SECRET} ${INTERVAL}
+CMD ["/opt/porkbun_dns_updater"]

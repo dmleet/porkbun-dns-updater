@@ -1,13 +1,15 @@
 #!/bin/bash
 
+set -uo pipefail
+
 # Porkbun API Script to Update DNS Records
 
-# Parameters
-readonly domain="${1}"             # Your domain (e.g., example.com)
-readonly subdomains="${2}"         # Comma-separated list of subdomains (e.g., "@,www,api")
-readonly api_key="${3}"            # Porkbun API Key
-readonly api_secret="${4}"         # Porkbun Secret API Key
-readonly interval="${5}"           # Time in seconds between checks
+# Config (read from environment so secrets do not appear in `ps`)
+readonly domain="${DOMAIN:-NULL}"
+readonly subdomains="${SUB_DOMAINS:-@}"
+readonly api_key="${API_KEY:-NULL}"
+readonly api_secret="${API_SECRET:-NULL}"
+readonly interval="${INTERVAL:-600}"
 
 # Porkbun API Endpoints
 readonly base_url="https://api.porkbun.com/api/json/v3"
