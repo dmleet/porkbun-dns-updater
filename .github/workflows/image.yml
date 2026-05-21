@@ -16,6 +16,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Read version
+        id: version
+        run: |
+          echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
+          echo "build_date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
       - name: Log in to Docker Hub
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@v2
@@ -28,9 +34,15 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/porkbun-dns-updater:latest .
+          docker build \
+            --build-arg VERSION=${{ steps.version.outputs.version }} \
+            --build-arg BUILD_DATE=${{ steps.version.outputs.build_date }} \
+            -t ${{ secrets.DOCKER_USERNAME }}/porkbun-dns-updater:latest \
+            -t ${{ secrets.DOCKER_USERNAME }}/porkbun-dns-updater:${{ steps.version.outputs.version }} \
+            .
 
       - name: Push Docker image
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/porkbun-dns-updater:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/porkbun-dns-updater:${{ steps.version.outputs.version }}

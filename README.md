@@ -7,6 +7,9 @@
 * Default of 600 used for **INTERVAL** if none specified (10 minutes)
 * External IP is obtained from https://api.ipify.org/
 
+### Releases
+* The image is published as both `:latest` and `:<version>`, where `<version>` is the contents of the `VERSION` file at repo root. Bump `VERSION` in a PR and merge to `main` to publish a new immutable tag.
+
 ## Docker run example
 ```
 docker run -d \

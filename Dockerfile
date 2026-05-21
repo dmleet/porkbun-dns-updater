@@ -4,8 +4,11 @@ FROM alpine:latest
 # Install curl
 RUN apk add --no-cache curl bash tzdata bind-tools jq
 
+ARG VERSION=dev
+ARG BUILD_DATE=unknown
+
 # Set version label
-LABEL build_version="Porkbun-DNS-Updater, Version: 1.0.1, Build-date: 2024-Nov-16"
+LABEL build_version="Porkbun-DNS-Updater, Version: ${VERSION}, Build-date: ${BUILD_DATE}"
 LABEL maintainer=dmleet
 
 # Copy convert shell scripts to /opt
