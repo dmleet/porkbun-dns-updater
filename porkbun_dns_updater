@@ -39,7 +39,7 @@ while true; do
     echo "Starting DNS check at $(date)"
 
     # Get the current external IP address
-    external_ip=$(curl -s "https://api.ipify.org/")
+    external_ip=$(curl -s --max-time 30 "https://api.ipify.org/")
     if [[ -z "$external_ip" ]]; then
         echo "Error: Unable to retrieve external IP. Retrying in ${interval} seconds..."
         sleep "${interval}"
@@ -48,7 +48,7 @@ while true; do
     echo "Current external IP: ${external_ip}"
 
     # Get current DNS records
-    response=$(curl -s -X POST "${retrieve_url}" \
+    response=$(curl -s --max-time 30 -X POST "${retrieve_url}" \
         -H "Content-Type: application/json" \
         -d "{\"apikey\":\"${api_key}\", \"secretapikey\":\"${api_secret}\"}")
 
@@ -88,10 +88,14 @@ while true; do
         fi
 
         # Update the A record if the IPs do not match
+        update_name="${subdomain}"
+        if [ "$subdomain" == "@" ]; then
+          update_name=""
+        fi
         update_url="${base_url}/dns/edit/${domain}/${record_id}"
-        update_response=$(curl -s -X POST "${update_url}" \
+        update_response=$(curl -s --max-time 30 -X POST "${update_url}" \
             -H "Content-Type: application/json" \
-            -d "{\"apikey\":\"${api_key}\", \"secretapikey\":\"${api_secret}\", \"id\":\"${record_id}\", \"type\":\"A\", \"name\":\"${subdomain}\", \"content\":\"${external_ip}\", \"ttl\":600}")
+            -d "{\"apikey\":\"${api_key}\", \"secretapikey\":\"${api_secret}\", \"id\":\"${record_id}\", \"type\":\"A\", \"name\":\"${update_name}\", \"content\":\"${external_ip}\", \"ttl\":600}")
 
         if [[ $(echo "$update_response" | jq -r '.status') == "SUCCESS" ]]; then
             echo "A record for ${full_name} updated from ${current_dns_ip} to ${external_ip}!"
