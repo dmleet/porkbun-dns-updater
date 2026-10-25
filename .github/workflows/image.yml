@@ -8,13 +8,30 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
+env:
+  IMAGE: dmleet/porkbun-dns-updater
+
 jobs:
-  build:
+  lint:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: ShellCheck
+        run: shellcheck porkbun_dns_updater
+
+  build:
+    needs: lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Read version
         id: version
@@ -22,27 +39,30 @@ jobs:
           echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
           echo "build_date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Log in to Docker Hub
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build Docker image
-        run: |
-          docker build \
-            --build-arg VERSION=${{ steps.version.outputs.version }} \
-            --build-arg BUILD_DATE=${{ steps.version.outputs.build_date }} \
-            -t ${{ secrets.DOCKER_USERNAME }}/porkbun-dns-updater:latest \
-            -t ${{ secrets.DOCKER_USERNAME }}/porkbun-dns-updater:${{ steps.version.outputs.version }} \
-            .
-
-      - name: Push Docker image
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/porkbun-dns-updater:latest
-          docker push ${{ secrets.DOCKER_USERNAME }}/porkbun-dns-updater:${{ steps.version.outputs.version }}
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}
+            BUILD_DATE=${{ steps.version.outputs.build_date }}
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ steps.version.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

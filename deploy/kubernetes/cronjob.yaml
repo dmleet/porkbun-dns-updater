@@ -1,0 +1,77 @@
+# Runs one DNS check every 10 minutes. Each run exits non-zero on failure, so
+# kube-state-metrics reports success/failure without any custom metrics.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: porkbun-dns-updater
+  labels:
+    app.kubernetes.io/name: porkbun-dns-updater
+spec:
+  schedule: "*/10 * * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      # The script already retries transient API errors; a failed run is
+      # retried by the next schedule rather than immediately
+      backoffLimit: 0
+      activeDeadlineSeconds: 300
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: porkbun-dns-updater
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: porkbun-dns-updater
+              image: dmleet/porkbun-dns-updater:1.1.0
+              env:
+                - name: RUN_ONCE
+                  value: "true"
+                - name: LOG_FORMAT
+                  value: json
+                - name: DOMAIN
+                  value: example.com
+                - name: SUB_DOMAINS
+                  value: "@,www"
+                - name: API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: porkbun-dns-updater
+                      key: api-key
+                - name: API_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: porkbun-dns-updater
+                      key: api-secret
+                # Optional: push per-run metrics to a Prometheus Pushgateway
+                # - name: PUSHGATEWAY_URL
+                #   value: http://prometheus-pushgateway.monitoring.svc:9091
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+                limits:
+                  memory: 64Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: tmp
+              emptyDir:
+                medium: Memory
+                sizeLimit: 1Mi

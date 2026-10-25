@@ -1,0 +1,26 @@
+# Loki ruler rules, for record-level alerts the CronJob metrics can't show.
+# They need a Loki ruler wired to Alertmanager (ruler.alertmanager_url); with
+# Grafana-managed alerting, use the same queries in a Grafana alert rule.
+# Adjust the stream selector to the labels your log agent (Alloy/Promtail)
+# attaches; `container` is set by most default configs.
+groups:
+  - name: porkbun-dns-updater
+    rules:
+      # Porkbun accepts writes for domains not delegated to its nameservers,
+      # but they do not change what resolves
+      - alert: PorkbunDnsUpdaterPorkbunWarning
+        expr: |
+          sum by (domain) (count_over_time({container="porkbun-dns-updater"} | json | event="porkbun_warning" [1h])) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Porkbun returned a warning on a DNS write for {{ $labels.domain }}"
+
+      # Informational: records were created, updated or deleted
+      - alert: PorkbunDnsUpdaterRecordsChanged
+        expr: |
+          sum by (domain) (count_over_time({container="porkbun-dns-updater"} | json | event=~"record_(created|updated|deleted)" [15m])) > 0
+        labels:
+          severity: info
+        annotations:
+          summary: "Porkbun DNS records changed for {{ $labels.domain }}"

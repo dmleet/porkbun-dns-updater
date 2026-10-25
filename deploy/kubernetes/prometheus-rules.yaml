@@ -1,0 +1,63 @@
+# Prometheus Operator rules (kube-prometheus-stack), based on the CronJob
+# metrics from kube-state-metrics. Your Prometheus may only load rules carrying
+# a specific label, e.g. `release: <helm release name>`. For a plain
+# Prometheus, copy the `groups:` section into a rules file.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: porkbun-dns-updater
+  labels:
+    app.kubernetes.io/name: porkbun-dns-updater
+spec:
+  groups:
+    - name: porkbun-dns-updater
+      rules:
+        # The most recent scheduled run has not succeeded. A healthy run
+        # finishes within seconds of being scheduled; 5m covers the run time
+        # plus the script's internal retries. Clears on the next success.
+        - alert: PorkbunDnsUpdaterRunFailed
+          expr: |
+            kube_cronjob_status_last_schedule_time{cronjob="porkbun-dns-updater"}
+              - kube_cronjob_status_last_successful_time{cronjob="porkbun-dns-updater"} > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Porkbun DNS updater's latest run failed
+            description: >-
+              The latest porkbun-dns-updater run did not succeed. The next run
+              retries automatically; check the job logs in Loki for the error.
+
+        # No success for an hour: runs keep failing, hang, stop being
+        # scheduled, or the CronJob is gone
+        - alert: PorkbunDnsUpdaterNoRecentSuccess
+          expr: |
+            time() - kube_cronjob_status_last_successful_time{cronjob="porkbun-dns-updater"} > 3600
+            or
+            absent(kube_cronjob_status_last_successful_time{cronjob="porkbun-dns-updater"})
+          # Long enough to cover the gap before the first run after deploying
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: Porkbun DNS updater has not succeeded in over an hour
+            description: >-
+              DNS records may be pointing at a stale IP. Check the CronJob and
+              its job logs in Loki.
+
+        - alert: PorkbunDnsUpdaterSuspended
+          expr: kube_cronjob_spec_suspend{cronjob="porkbun-dns-updater"} == 1
+          for: 1h
+          labels:
+            severity: info
+          annotations:
+            summary: Porkbun DNS updater CronJob is suspended
+
+        # Only used if PUSHGATEWAY_URL is set; never fires otherwise
+        - alert: PorkbunDnsUpdaterRecordFailures
+          expr: max by (domain) (porkbun_dns_updater_records{action="failed"}) > 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Porkbun DNS updater is failing to change records for {{ $labels.domain }}"

@@ -1,27 +1,30 @@
-# Use latest alpine base image
-FROM alpine:latest
+# Pinned base image (Dependabot keeps this current)
+FROM alpine:3.22
 
-# Install curl
-RUN apk add --no-cache curl bash tzdata bind-tools jq
+# Install runtime dependencies
+RUN apk add --no-cache bash curl jq tzdata
 
 ARG VERSION=dev
 ARG BUILD_DATE=unknown
 
-# Set version label
+# Set version labels
 LABEL build_version="Porkbun-DNS-Updater, Version: ${VERSION}, Build-date: ${BUILD_DATE}"
 LABEL maintainer=dmleet
+LABEL org.opencontainers.image.title="porkbun-dns-updater" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.source="https://github.com/dmleet/porkbun-dns-updater"
 
-# Copy convert shell scripts to /opt
-COPY porkbun_dns_updater /opt/
+ENV APP_VERSION=${VERSION}
 
-# Set scripts as executable
-RUN chmod +rxxx /opt/porkbun_dns_updater
+# Copy script to /opt as executable
+COPY --chmod=0755 porkbun_dns_updater /opt/porkbun_dns_updater
 
-# Set default docker variables
-ENV DOMAIN=${DOMAIN:-NULL}
-ENV SUB_DOMAINS=${SUB_DOMAINS:-@}
-ENV API_KEY=${API_KEY:-NULL}
-ENV API_SECRET=${API_SECRET:-NULL}
-ENV INTERVAL=${INTERVAL:-600}
+# Run unprivileged; the script only needs network access and /tmp
+USER nobody
+
+# Healthy while a sync cycle has succeeded within the last few intervals
+HEALTHCHECK --interval=60s --timeout=10s --start-period=120s \
+    CMD ["/opt/porkbun_dns_updater", "--healthcheck"]
 
 CMD ["/opt/porkbun_dns_updater"]

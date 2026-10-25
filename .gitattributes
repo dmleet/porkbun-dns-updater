@@ -1,0 +1,4 @@
+* text=auto
+porkbun_dns_updater text eol=lf
+*.yml text eol=lf
+Dockerfile text eol=lf
