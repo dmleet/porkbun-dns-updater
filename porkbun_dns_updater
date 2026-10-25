@@ -448,7 +448,6 @@ delete_record() {
     return 0
 }
 
-cloudflare_warned=false
 last_ip=""
 last_error=""
 cycle_duration=0
@@ -475,11 +474,6 @@ sync_cycle() {
         return 1
     fi
     records="${api_body}"
-
-    if [[ "${cloudflare_warned}" == false && $(jq -r '.cloudflare // empty' <<< "${records}") == enabled ]]; then
-        log WARN "Cloudflare is enabled for ${domain}; /dns changes may not affect what resolves" event=cloudflare_enabled
-        cloudflare_warned=true
-    fi
 
     for sub in "${subdomains[@]}"; do
         fqdn=$(fqdn_for "${sub}")
