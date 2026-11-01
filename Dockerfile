@@ -1,5 +1,5 @@
 # Pinned base image (Dependabot keeps this current)
-FROM alpine:3.22
+FROM alpine:3.24
 
 # Install runtime dependencies
 RUN apk add --no-cache bash curl jq tzdata
